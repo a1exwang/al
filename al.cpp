@@ -21,7 +21,7 @@
 #include <fstream>
 #include "parser.tab.hpp"
 #include "lex.h"
-#include "rt.h"
+#include "compile_time.h"
 
 using namespace llvm;
 using namespace std;
@@ -90,7 +90,7 @@ int maina() {
 }
 
 int main() {
-  al::Runtime rt;
+  al::CompileTime rt;
 
   ifstream ifs("/home/alexwang/dev/proj/cpp/al/hello.al");
   std::string str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
@@ -99,7 +99,10 @@ int main() {
   al::Parser parser(lexer, rt);
   parser.parse();
 
+  rt.setupMainModule();
+  rt.traverse1();
 
+  rt.getMainModule()->print(errs(), nullptr);
 
   return 0;
 }

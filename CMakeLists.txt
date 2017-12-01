@@ -19,7 +19,7 @@ add_definitions(${LLVM_DEFINITIONS})
 add_compile_options(-std=c++11)
 
 
-add_executable(al al.cpp ${BISON_parser_OUTPUTS} lex.cpp)
+add_executable(al al.cpp ${BISON_parser_OUTPUTS} lex.cpp lex.h ast.h ast.cpp compile_time.cpp)
 llvm_map_components_to_libnames(llvm_libs support core irreader)
 target_link_libraries(al ${llvm_libs} re2)
 

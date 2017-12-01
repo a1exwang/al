@@ -15,7 +15,7 @@
     #include <vector>
     #include <stdint.h>
     #include "ast.h"
-    #include "rt.h"
+    #include "compile_time.h"
 
     using namespace std;
 
@@ -43,7 +43,7 @@
 }
 
 %lex-param { al::Lexer &lexer }
-%parse-param { al::Lexer &lexer } { al::Runtime &rt }
+%parse-param { al::Lexer &lexer } { al::CompileTime &rt }
 %locations
 %define parse.trace
 %define parse.error verbose
@@ -75,7 +75,7 @@ exp: list { $$ = $1; }
 list: LEFTPAR exp_list RIGHTPAR { $$ = std::make_shared<al::ast::List>($2); }
 
 exp_list: { $$ = std::make_shared<al::ast::ExpList>(); }
-    | exp exp_list { $$ = $2->append($1); }
+    | exp exp_list { $$ = $2->prepend($1); }
 
 %%
 void al::Parser::error(const location &loc , const std::string &message) {
