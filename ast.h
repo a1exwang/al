@@ -6,6 +6,7 @@
 #include <vector>
 #include <iterator>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/Constants.h>
 
 
 namespace al {
@@ -13,7 +14,7 @@ namespace al {
   namespace ast {
 
     struct VisitResult {
-      VisitResult() :value(nullptr) { }
+      VisitResult() :value() { }
       VisitResult(const nullptr_t &nptr) :value(nullptr) {}
       llvm::Value *value;
     };
@@ -36,6 +37,8 @@ namespace al {
       virtual std::vector<std::shared_ptr<ASTNode>> getChildren() {
         return children;
       }
+      VisitResult getVR() const { return vr; }
+
     protected:
       void appendChild(const std::shared_ptr<ASTNode> &node) {
         this->children.push_back(node);
@@ -85,6 +88,9 @@ namespace al {
       }
       void pre_visit(CompileTime &) override;
       void post_visit(CompileTime &) override;
+      VisitResult gen_visit_result(CompileTime &) override {
+        return getChildren()[0]->getVR();
+      }
 
     private:
       std::shared_ptr<ExpList> list;
@@ -115,6 +121,7 @@ namespace al {
       }
 
       void pre_visit(CompileTime &) override;
+      VisitResult gen_visit_result(CompileTime &ct) override;
 
     private:
       std::string s;

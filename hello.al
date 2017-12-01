@@ -1,5 +1,5 @@
 (fn 'main'
-    (argc argv)
+    ('argc' 'argv')
     (statements
         (puts argc)
         (puts 'hello')

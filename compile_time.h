@@ -26,9 +26,14 @@ namespace al {
     void createFunction(llvm::Module &module, const std::string &name, std::vector<std::string> paramNames);
     void setupMainModule();
     void createFnFunc();
+    void createPlaceHolderFunc(const std::string &name, int n);
     void traverse1();
     llvm::BasicBlock* createFunctionBody(llvm::Module &module, const std::string &name);
     llvm::Module* getMainModule() const;
+
+    llvm::StructType *getStringType() const;
+    llvm::StructType *getValueType() const { return valueType; }
+    llvm::StructType *getArrayType() const { return arrayType; }
 
     void pushCurrentBlock(llvm::BasicBlock *b) { this->currentBlocks.push_back(b); }
     void popCurrentBlock() { this->currentBlocks.pop_back(); }
@@ -36,7 +41,14 @@ namespace al {
 
     llvm::IRBuilder<> &getBuilder() { return builder; }
 
+    llvm::LLVMContext &getContext() { return theContext; }
+
   private:
+    llvm::StructType *valueType;
+    llvm::StructType *stringType;
+    llvm::StructType *arrayType;
+
+
     std::shared_ptr<ast::ASTNode> root;
 
     llvm::LLVMContext theContext;

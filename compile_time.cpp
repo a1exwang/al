@@ -45,6 +45,21 @@ void al::CompileTime::createFunction(Module &module, const string &name, vector<
 void al::CompileTime::setupMainModule() {
   mainModule = llvm::make_unique<llvm::Module>("main", theContext);
   createFnFunc();
+
+  Function *func = Function::Create(
+      FunctionType::get(Type::getVoidTy(theContext), {}),
+      Function::ExternalLinkage,
+      "main",
+      getMainModule()
+  );
+
+  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
+  builder.SetInsertPoint(BB);
+  pushCurrentBlock(BB);
+  // main function starts
+
+  createPlaceHolderFunc("statements", 3);
+  createPlaceHolderFunc("puts", 1);
 }
 
 al::CompileTime::CompileTime() :theContext(), builder(theContext) {
@@ -64,17 +79,18 @@ void al::CompileTime::createFnFunc() {
   /**
    * Create 'String' Type
    * */
-  auto stringType = StructType::create(theContext, {
-      Type::getInt32Ty(theContext),
-      Type::getInt8PtrTy(theContext),
-  }, "String");
   // Value type consists of
   //  String, Int
-  auto valueType = StructType::create(
+  valueType = StructType::create(
       theContext,
       "Value");
 
-  auto arrayType = StructType::create(
+  stringType = llvm::StructType::create(theContext, {
+      llvm::Type::getInt32Ty(theContext),
+      llvm::Type::getInt8PtrTy(theContext),
+  }, "String");
+
+  arrayType = StructType::create(
       theContext,
       {
           Type::getInt32Ty(theContext), // length,
@@ -86,7 +102,7 @@ void al::CompileTime::createFnFunc() {
       {
           Type::getInt8PtrTy(theContext), // object type
 
-          stringType,
+          getStringType(),
           Type::getInt32Ty(theContext),
           arrayType,
       });
@@ -109,4 +125,21 @@ void al::CompileTime::createFnFunc() {
   builder.SetInsertPoint(BB);
   builder.CreateRet(llvm::ConstantInt::get(Type::getInt32Ty(theContext), 0));
   verifyFunction(*func);
+}
+
+llvm::StructType *al::CompileTime::getStringType() const {
+  return stringType;
+}
+
+void al::CompileTime::createPlaceHolderFunc(const std::string &name, int n) {
+  vector<llvm::Type*> types(n, valueType);
+  FunctionType *ft = FunctionType::get(valueType, types, false);
+  Function *func = Function::Create(ft, Function::ExternalLinkage, name, getMainModule());
+
+  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
+  IRBuilder<> builder1(theContext);
+  builder1.SetInsertPoint(BB);
+  builder1.CreateRet(llvm::ConstantInt::get(Type::getInt32Ty(theContext), 0));
+  verifyFunction(*func);
+
 }
