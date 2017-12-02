@@ -65,7 +65,6 @@ int maina() {
   verifyFunction(*TheFunction);
 
 
-
   // Call  fn
   vector<Type *> vd(0);
   FunctionType *FT1 = FunctionType::get(Type::getInt32Ty(TheContext), vd, false);
@@ -99,7 +98,7 @@ int main() {
   al::Parser parser(lexer, rt);
   parser.parse();
 
-  rt.setupMainModule();
+  rt.init();
   rt.traverse1();
 
   rt.getMainModule()->print(errs(), nullptr);

@@ -23,16 +23,24 @@ namespace al {
     void setASTRoot(std::shared_ptr<ast::ASTNode> root) {
       this->root = std::move(root);
     }
+    void init();
     void createFunction(llvm::Module &module, const std::string &name, std::vector<std::string> paramNames);
     void setupMainModule();
     void createFnFunc();
+    void createMainFunc();
+    void createPrimitiveTypes();
     void createPlaceHolderFunc(const std::string &name, int n);
     void traverse1();
     llvm::BasicBlock* createFunctionBody(llvm::Module &module, const std::string &name);
     llvm::Module* getMainModule() const;
 
+    llvm::Value *createStringValuePtr(const std::string &s);
+    llvm::Value *castToValuePtr(llvm::Value *);
+
+    llvm::PointerType *getStringPtrType() const;
     llvm::StructType *getStringType() const;
     llvm::StructType *getValueType() const { return valueType; }
+    llvm::PointerType *getValuePtrType();
     llvm::StructType *getArrayType() const { return arrayType; }
 
     void pushCurrentBlock(llvm::BasicBlock *b) { this->currentBlocks.push_back(b); }
@@ -45,9 +53,9 @@ namespace al {
 
   private:
     llvm::StructType *valueType;
+    llvm::PointerType *valuePtrType;
     llvm::StructType *stringType;
     llvm::StructType *arrayType;
-
 
     std::shared_ptr<ast::ASTNode> root;
 

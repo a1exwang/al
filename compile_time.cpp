@@ -44,22 +44,7 @@ void al::CompileTime::createFunction(Module &module, const string &name, vector<
 
 void al::CompileTime::setupMainModule() {
   mainModule = llvm::make_unique<llvm::Module>("main", theContext);
-  createFnFunc();
 
-  Function *func = Function::Create(
-      FunctionType::get(Type::getVoidTy(theContext), {}),
-      Function::ExternalLinkage,
-      "main",
-      getMainModule()
-  );
-
-  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
-  builder.SetInsertPoint(BB);
-  pushCurrentBlock(BB);
-  // main function starts
-
-  createPlaceHolderFunc("statements", 3);
-  createPlaceHolderFunc("puts", 1);
 }
 
 al::CompileTime::CompileTime() :theContext(), builder(theContext) {
@@ -75,6 +60,44 @@ llvm::Module* al::CompileTime::getMainModule() const { return mainModule.get(); 
 void al::CompileTime::createFnFunc() {
   IRBuilder<> builder(theContext);
   // Declare function
+  vector<Type *> params = vector<Type*>(3, getValuePtrType()); //name
+  FunctionType *ft = FunctionType::get(getValuePtrType(), params, false);
+
+  Function *func = Function::Create(ft, Function::ExternalLinkage, "fn", getMainModule());
+
+  string argNames[] = {"name", "args", "statements"};
+
+  int i = 0;
+  for (auto &arg : func->args()) {
+    if (i < 2) {
+      arg.setName(argNames[i]);
+    }
+    i++;
+  }
+
+  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
+  builder.SetInsertPoint(BB);
+  builder.CreateRet(createStringValuePtr("return"));
+  verifyFunction(*func);
+}
+
+llvm::StructType *al::CompileTime::getStringType() const {
+  return stringType;
+}
+
+void al::CompileTime::createPlaceHolderFunc(const std::string &name, int n) {
+  vector<llvm::Type*> types(n, getValuePtrType());
+  FunctionType *ft = FunctionType::get(getValuePtrType(), types, false);
+  Function *func = Function::Create(ft, Function::ExternalLinkage, name, getMainModule());
+
+  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
+  IRBuilder<> builder1(theContext);
+  builder1.SetInsertPoint(BB);
+  builder1.CreateRet(llvm::ConstantPointerNull::get(getValuePtrType()));
+  verifyFunction(*func);
+}
+
+void al::CompileTime::createPrimitiveTypes() {
   // int len; char *data;
   /**
    * Create 'String' Type
@@ -84,10 +107,11 @@ void al::CompileTime::createFnFunc() {
   valueType = StructType::create(
       theContext,
       "Value");
+  valuePtrType = PointerType::get(valueType, 0);
 
   stringType = llvm::StructType::create(theContext, {
       llvm::Type::getInt32Ty(theContext),
-      llvm::Type::getInt8PtrTy(theContext),
+      llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(theContext)),
   }, "String");
 
   arrayType = StructType::create(
@@ -106,40 +130,87 @@ void al::CompileTime::createFnFunc() {
           Type::getInt32Ty(theContext),
           arrayType,
       });
-  vector<Type *> params = vector<Type*>(3, valueType); //name
-  FunctionType *ft = FunctionType::get(valueType, params, false);
 
-  Function *func = Function::Create(ft, Function::ExternalLinkage, "fn", getMainModule());
+}
 
-  string argNames[] = {"name", "args", "statements"};
+void al::CompileTime::init() {
+  setupMainModule();
+  createPrimitiveTypes();
+  createFnFunc();
 
-  int i = 0;
-  for (auto &arg : func->args()) {
-    if (i < 2) {
-      arg.setName(argNames[i]);
-    }
-    i++;
-  }
+  createPlaceHolderFunc("statements", 3);
+  createPlaceHolderFunc("puts", 1);
+  createMainFunc();
+}
+
+void al::CompileTime::createMainFunc() {
+  Function *func = Function::Create(
+      FunctionType::get(Type::getVoidTy(theContext), {}),
+      Function::ExternalLinkage,
+      "main",
+      getMainModule()
+  );
 
   BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
   builder.SetInsertPoint(BB);
-  builder.CreateRet(llvm::ConstantInt::get(Type::getInt32Ty(theContext), 0));
-  verifyFunction(*func);
+  pushCurrentBlock(BB);
+  // main function starts
 }
 
-llvm::StructType *al::CompileTime::getStringType() const {
-  return stringType;
+llvm::Value *al::CompileTime::createStringValuePtr(const std::string &s) {
+
+  auto dataArray = ConstantDataArray::get(
+      theContext,
+      ArrayRef<uint8_t>((uint8_t*)s.c_str(), 100)
+  );
+
+  auto *alloc = new AllocaInst(getStringType(), 0);
+  auto lenPtr = GetElementPtrInst::Create(
+      getStringType(),
+      alloc,
+      {ConstantInt::get(Type::getInt32Ty(theContext), 0),
+       ConstantInt::get(Type::getInt32Ty(theContext), 0)});
+  auto dataPtr = GetElementPtrInst::Create(
+      getStringType(),
+      alloc,
+      {ConstantInt::get(Type::getInt32Ty(theContext), 0),
+       ConstantInt::get(Type::getInt32Ty(theContext), 1)});
+  auto storeLen = new StoreInst(
+      ConstantInt::get(Type::getInt32Ty(theContext), s.size()),
+      lenPtr
+  );
+  auto *allocatedBytes = new AllocaInst(
+      Type::getInt8Ty(theContext),
+      0,
+      ConstantInt::get(Type::getInt32Ty(theContext), s.size())
+  );
+
+  // global
+
+  getMainModule()->getOrInsertGlobal(".str", ArrayType::get(Type::getInt8Ty(theContext), s.size()));
+  GlobalVariable *gVar = getMainModule()->getNamedGlobal(".str");
+  gVar->setLinkage(GlobalValue::CommonLinkage);
+  gVar->setAlignment(4);
+
+  auto storeData = new StoreInst(
+      ConstantPointerNull::get(Type::getInt8PtrTy(theContext)),
+      dataPtr
+  );
+//  auto bc = new BitCastInst(alloc, getConstantStringType());
+  cout << alloc->getType()->getTypeID() << endl;
+  cout << ((PointerType*)alloc->getType())->getElementType()->getTypeID() << endl;
+  return alloc;
 }
 
-void al::CompileTime::createPlaceHolderFunc(const std::string &name, int n) {
-  vector<llvm::Type*> types(n, valueType);
-  FunctionType *ft = FunctionType::get(valueType, types, false);
-  Function *func = Function::Create(ft, Function::ExternalLinkage, name, getMainModule());
+llvm::PointerType *al::CompileTime::getStringPtrType() const {
+  return llvm::PointerType::get(stringType, 0);
+}
 
-  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
-  IRBuilder<> builder1(theContext);
-  builder1.SetInsertPoint(BB);
-  builder1.CreateRet(llvm::ConstantInt::get(Type::getInt32Ty(theContext), 0));
-  verifyFunction(*func);
+llvm::PointerType *al::CompileTime::getValuePtrType() {
+  return valuePtrType;
+}
 
+llvm::Value *al::CompileTime::castToValuePtr(llvm::Value *val) {
+  val->dump();
+  return BitCastInst::CreatePointerCast(val, getValuePtrType());
 }

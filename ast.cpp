@@ -19,7 +19,7 @@ namespace al {
     VisitResult StringLiteral::gen_visit_result(CompileTime &ct) {
       VisitResult vr;
 //        vr.value = createStringTypeObject(this->s);
-      vr.value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(ct.getContext()), 0);
+      vr.value = ct.createStringValuePtr("null");
       return vr;
     }
 
@@ -43,42 +43,16 @@ namespace al {
       auto symbol = dynamic_cast<Symbol*>(c[0].get());
       if (symbol == nullptr) {
         // not function call list, maybe value array, string array
-        auto arr = llvm::ArrayType::get(rt.getStringType(), c.size());
         vector<llvm::Value*> items;
         for (const auto &item : c) {
           auto str = dynamic_cast<StringLiteral*>(item.get());
           if (str != nullptr) {
-//            llvm::AllocaInst::get
-            auto &theContext = rt.getContext();
-
-            auto ip = rt.getCurrentBlock()->getFirstInsertionPt();
-            llvm::Value *charArrayValue = rt.getBuilder().CreateAlloca(
-                llvm::ArrayType::getInt8Ty(theContext),
-                llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), str->getValue().size())
-            );
-            rt.getBuilder().CreateMemSet(
-                charArrayValue,
-                llvm::ConstantInt::get(llvm::Type::getInt8Ty(theContext), 'a'),
-                str->getValue().size(),
-                4
-            );
-            auto result = rt.getBuilder().CreateBitCast(charArrayValue, llvm::Type::getInt8PtrTy(theContext));
-
-            vector<llvm::Value*> b = {
-                (llvm::Value*)llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), str->getValue().size()),
-                (llvm::Value*)result,
-            };
-            auto dl = llvm::DataLayout(rt.getMainModule());
-            auto size = dl.getTypeAllocSize(rt.getStringType());
-            llvm::Value *structData = rt.getBuilder().CreateAlloca(
-                rt.getStringType(),
-                llvm::ConstantInt::get(llvm::Type::getInt32Ty(theContext), size)
-            );
-            items.push_back(structData);
+            items.push_back(rt.createStringValuePtr(str->getValue()));
           }
         }
         VisitResult vr;
-        vr.value = items[0];
+        vr.value = llvm::ConstantPointerNull::get(rt.getValuePtrType());
+//        vr.value = llvm::Array::get(arr, items);
         return vr;
 //        return llvm::ConstantArray::get(arr, {});
 //        cerr << "Compile error, the first element in function call list must be a symbol" << endl;
@@ -95,9 +69,9 @@ namespace al {
       for (unsigned i = 1; i < c.size(); ++i) {
         auto result = c[i]->visit(rt);
         if (result.value)
-          ArgsV.push_back(result.value);
+          ArgsV.push_back(rt.castToValuePtr(result.value));
         else {
-          ArgsV.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(rt.getContext()), 0));
+          ArgsV.push_back(rt.castToValuePtr(rt.createStringValuePtr("wtf")));
 
         }
 //        if (!ArgsV.back())
