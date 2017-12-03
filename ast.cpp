@@ -19,7 +19,7 @@ namespace al {
     VisitResult StringLiteral::gen_visit_result(CompileTime &ct) {
       VisitResult vr;
 //        vr.value = createStringTypeObject(this->s);
-      vr.value = ct.createStringValuePtr("null");
+      vr.value = ct.createStringValuePtr("null", ct.getBuilder());
       return vr;
     }
 
@@ -47,7 +47,7 @@ namespace al {
         for (const auto &item : c) {
           auto str = dynamic_cast<StringLiteral*>(item.get());
           if (str != nullptr) {
-            items.push_back(rt.createStringValuePtr(str->getValue()));
+            items.push_back(rt.createStringValuePtr(str->getValue(), rt.getBuilder()));
           }
         }
         VisitResult vr;
@@ -68,14 +68,14 @@ namespace al {
       std::vector<llvm::Value *> ArgsV;
       for (unsigned i = 1; i < c.size(); ++i) {
         auto result = c[i]->visit(rt);
-        if (result.value)
-          ArgsV.push_back(rt.castToValuePtr(result.value));
-        else {
-          ArgsV.push_back(rt.castToValuePtr(rt.createStringValuePtr("wtf")));
-
+        if (result.value) {
+          ArgsV.push_back(rt.getBuilder().CreatePointerCast(result.value, rt.getValuePtrType()));
         }
-//        if (!ArgsV.back())
-//          return nullptr;
+        else {
+          ArgsV.push_back(rt.getBuilder().CreatePointerCast(
+              rt.createStringValuePtr("wtf", rt.getBuilder()),
+              rt.getValuePtrType()));
+        }
       }
 
       post_visit(rt);

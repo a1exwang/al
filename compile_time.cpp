@@ -18,6 +18,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include "compile_time.h"
 
 using namespace llvm;
@@ -47,7 +48,7 @@ void al::CompileTime::setupMainModule() {
 
 }
 
-al::CompileTime::CompileTime() :theContext(), builder(theContext) {
+al::CompileTime::CompileTime() :theContext(), builder(theContext), strCounter(0) {
 }
 
 llvm::BasicBlock *al::CompileTime::createFunctionBody(llvm::Module &module, const std::string &name) {
@@ -75,9 +76,11 @@ void al::CompileTime::createFnFunc() {
     i++;
   }
 
-  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
-  builder.SetInsertPoint(BB);
-  builder.CreateRet(createStringValuePtr("return"));
+  BasicBlock *bb = BasicBlock::Create(theContext, "entry", func);
+  IRBuilder<> builder1(bb);
+  auto s = createStringValuePtr("return", builder1);
+  auto a = builder1.CreatePointerCast(s, getValuePtrType());
+  builder1.CreateRet(a);
   verifyFunction(*func);
 }
 
@@ -157,49 +160,41 @@ void al::CompileTime::createMainFunc() {
   // main function starts
 }
 
-llvm::Value *al::CompileTime::createStringValuePtr(const std::string &s) {
+llvm::Value *al::CompileTime::createStringValuePtr(const std::string &s, IRBuilder<> &builder) {
 
-  auto dataArray = ConstantDataArray::get(
-      theContext,
-      ArrayRef<uint8_t>((uint8_t*)s.c_str(), 100)
-  );
-
-  auto *alloc = new AllocaInst(getStringType(), 0);
-  auto lenPtr = GetElementPtrInst::Create(
+  auto strObj = builder.CreateAlloca(
       getStringType(),
-      alloc,
-      {ConstantInt::get(Type::getInt32Ty(theContext), 0),
-       ConstantInt::get(Type::getInt32Ty(theContext), 0)});
-  auto dataPtr = GetElementPtrInst::Create(
-      getStringType(),
-      alloc,
-      {ConstantInt::get(Type::getInt32Ty(theContext), 0),
-       ConstantInt::get(Type::getInt32Ty(theContext), 1)});
-  auto storeLen = new StoreInst(
-      ConstantInt::get(Type::getInt32Ty(theContext), s.size()),
-      lenPtr
-  );
-  auto *allocatedBytes = new AllocaInst(
-      Type::getInt8Ty(theContext),
       0,
-      ConstantInt::get(Type::getInt32Ty(theContext), s.size())
+      ConstantInt::get(Type::getInt32Ty(theContext), 1)
   );
-
+  auto dataPtr = builder.CreateGEP(
+      getStringType(),
+      strObj,
+      {ConstantInt::get(Type::getInt32Ty(theContext), 0),
+       ConstantInt::get(Type::getInt32Ty(theContext), 1)}
+  );
+  // strObj.length = s.size()
+  builder.CreateStore(
+      ConstantInt::get(Type::getInt32Ty(theContext), s.size()),
+      builder.CreateGEP(
+          getStringType(),
+          strObj,
+          {ConstantInt::get(Type::getInt32Ty(theContext), 0),
+           ConstantInt::get(Type::getInt32Ty(theContext), 0)}
+      )
+  );
   // global
-
-  getMainModule()->getOrInsertGlobal(".str", ArrayType::get(Type::getInt8Ty(theContext), s.size()));
-  GlobalVariable *gVar = getMainModule()->getNamedGlobal(".str");
-  gVar->setLinkage(GlobalValue::CommonLinkage);
-  gVar->setAlignment(4);
-
-  auto storeData = new StoreInst(
-      ConstantPointerNull::get(Type::getInt8PtrTy(theContext)),
+  stringstream ss;
+  ss << strCounter++;
+  string name = ".str" + ss.str();
+  auto gVar = builder.CreateGlobalString(s);
+  // strObj.data = (int8*)@.strXX
+  builder.CreateStore(
+      builder.CreateBitCast(
+          gVar, PointerType::get(Type::getInt8Ty(theContext), 0)),
       dataPtr
   );
-//  auto bc = new BitCastInst(alloc, getConstantStringType());
-  cout << alloc->getType()->getTypeID() << endl;
-  cout << ((PointerType*)alloc->getType())->getElementType()->getTypeID() << endl;
-  return alloc;
+  return strObj;
 }
 
 llvm::PointerType *al::CompileTime::getStringPtrType() const {
@@ -210,7 +205,15 @@ llvm::PointerType *al::CompileTime::getValuePtrType() {
   return valuePtrType;
 }
 
-llvm::Value *al::CompileTime::castToValuePtr(llvm::Value *val) {
-  val->dump();
-  return BitCastInst::CreatePointerCast(val, getValuePtrType());
+al::CompileTime::~CompileTime() {
+
+
 }
+
+void al::CompileTime::finish() {
+  builder.CreateRet(nullptr);
+}
+
+//llvm::Value *al::CompileTime::castToValuePtr(llvm::Value *val) {
+//  return BitCastInst::CreatePointerCast(val, getValuePtrType());
+//}

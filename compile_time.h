@@ -19,11 +19,13 @@ namespace al {
   class CompileTime {
   public:
     CompileTime();
+    ~CompileTime();
 
     void setASTRoot(std::shared_ptr<ast::ASTNode> root) {
       this->root = std::move(root);
     }
     void init();
+    void finish();
     void createFunction(llvm::Module &module, const std::string &name, std::vector<std::string> paramNames);
     void setupMainModule();
     void createFnFunc();
@@ -34,8 +36,8 @@ namespace al {
     llvm::BasicBlock* createFunctionBody(llvm::Module &module, const std::string &name);
     llvm::Module* getMainModule() const;
 
-    llvm::Value *createStringValuePtr(const std::string &s);
-    llvm::Value *castToValuePtr(llvm::Value *);
+    llvm::Value *createStringValuePtr(const std::string &s, llvm::IRBuilder<> &builder);
+//    llvm::Value *castToValuePtr(llvm::Value *);
 
     llvm::PointerType *getStringPtrType() const;
     llvm::StructType *getStringType() const;
@@ -60,9 +62,10 @@ namespace al {
     std::shared_ptr<ast::ASTNode> root;
 
     llvm::LLVMContext theContext;
+    llvm::IRBuilder<> builder;
     std::unique_ptr<llvm::Module> mainModule;
 
     std::vector<llvm::BasicBlock*> currentBlocks;
-    llvm::IRBuilder<> builder;
+    int strCounter;
   };
 }
