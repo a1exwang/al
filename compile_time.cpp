@@ -139,10 +139,12 @@ void al::CompileTime::createPrimitiveTypes() {
 void al::CompileTime::init() {
   setupMainModule();
   createPrimitiveTypes();
+  createLibFunc();
   createFnFunc();
+  createPutsFunc();
 
   createPlaceHolderFunc("statements", 3);
-  createPlaceHolderFunc("puts", 1);
+//  createPlaceHolderFunc("puts", 1);
   createMainFunc();
 }
 
@@ -161,18 +163,8 @@ void al::CompileTime::createMainFunc() {
 
   /* declares stdlib functions */
 
-  // int printf(const char *, ...)
-  this->fns.printf = Function::Create(
-      FunctionType::get(
-          Type::getInt32Ty(theContext),
-          {PointerType::get(Type::getInt8Ty(theContext), 0)},
-          true
-      ),
-      Function::LinkageTypes::ExternalLinkage, "printf", getMainModule()
-  );
-
   // global
-  auto gVar = builder.CreateGlobalString("tmp123_wtf", "wtf");
+  auto gVar = builder.CreateGlobalString("tmp123_wtf\n", "wtf");
   auto strPtr = builder.CreateBitCast(gVar, PointerType::get(Type::getInt8Ty(theContext), 0));
   builder.CreateCall(
       this->fns.printf,
@@ -249,6 +241,55 @@ std::string al::CompileTime::nextConstVarName() {
   ss << strCounter++;
   string name = ".local_" + ss.str();
   return name;
+}
+
+void al::CompileTime::createPutsFunc() {
+  vector<llvm::Type*> types(1, getValuePtrType());
+  FunctionType *ft = FunctionType::get(getValuePtrType(), types, false);
+  Function *func = Function::Create(ft, Function::ExternalLinkage, "puts", getMainModule());
+  func->args().begin()->setName("s");
+
+  BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
+  IRBuilder<> builder1(theContext);
+  builder1.SetInsertPoint(BB);
+
+  // function body
+//  builder1.
+//  auto gVar = builder1.CreateGlobalString("abc\n", "wtf1");
+  llvm::Value *objPtr = func->arg_begin();
+  auto sPtr = builder1.CreatePointerCast(objPtr, getStringPtrType());
+  auto bytesDataPtr = builder1.CreateGEP(
+      sPtr->getType()->getPointerElementType(),
+      sPtr,
+      {ConstantInt::get(Type::getInt32Ty(theContext),0),
+       ConstantInt::get(Type::getInt32Ty(theContext),1)}
+  );
+  auto bytesData = builder1.CreateLoad(bytesDataPtr);
+//  auto strPtr = builder1.CreateBitCast(
+//      bytesData,
+//      PointerType::get(Type::getInt8Ty(theContext), 0)
+//  );
+  builder1.CreateCall(
+      this->fns.printf,
+      {bytesData}
+  );
+  builder1.CreateRet(ConstantPointerNull::get(getValuePtrType()));
+//  builder1.CreateRet(llvm::ConstantPointerNull::get(getValuePtrType()));
+//  llvm::Value *s = func->arg_begin();
+
+  verifyFunction(*func);
+}
+
+void al::CompileTime::createLibFunc() {
+  // int printf(const char *, ...)
+  this->fns.printf = Function::Create(
+      FunctionType::get(
+          Type::getInt32Ty(theContext),
+          {PointerType::get(Type::getInt8Ty(theContext), 0)},
+          true
+      ),
+      Function::LinkageTypes::ExternalLinkage, "printf", getMainModule()
+  );
 }
 
 //llvm::Value *al::CompileTime::castToValuePtr(llvm::Value *val) {

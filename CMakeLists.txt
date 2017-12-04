@@ -24,4 +24,4 @@ llvm_map_components_to_libnames(llvm_libs support core irreader executionengine 
 target_link_libraries(al ${llvm_libs} re2)
 
 add_executable(jit HowToUseJIT.cpp)
-target_link_libraries(jit ${llvm_libs} ${LLVM_LINK_COMPONENTS})
+target_link_libraries(jit ${llvm_libs})

@@ -69,13 +69,13 @@ int main() {
 
   rt.finish();
 
-//  std::error_code ec;
-//  string s;
-//  raw_string_ostream s1(s);
+  std::error_code ec;
+  string s;
+  raw_string_ostream s1(s);
 //  rt.getMainModule()->print(errs(), nullptr);
-//  rt.getMainModule()->print(s1, nullptr);
-//  ofstream fs("test.ll");
-//  fs << s;
+  rt.getMainModule()->print(s1, nullptr);
+  ofstream fs("test.ll");
+  fs << s;
 
   // start interpreter
 
@@ -86,15 +86,10 @@ int main() {
   ExecutionEngine* EE = eb
       .setEngineKind(EngineKind::Interpreter)
       .create();
+  GenericValue gv = EE->runFunction(mainFunc, {});
 
-  // Call the `foo' function with no arguments:
-  std::vector<GenericValue> noargs;
-  GenericValue gv = EE->runFunction(mainFunc, noargs);
-
-  // Import result of execution:
   outs() << "Result: " << gv.IntVal << "\n";
   delete EE;
   llvm_shutdown();
   return 0;
-
 }

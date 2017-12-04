@@ -30,8 +30,10 @@ namespace al {
     void setupMainModule();
     void createFnFunc();
     void createMainFunc();
+    void createLibFunc();
     void createPrimitiveTypes();
     void createPlaceHolderFunc(const std::string &name, int n);
+    void createPutsFunc();
     void traverse1();
     llvm::BasicBlock* createFunctionBody(llvm::Module &module, const std::string &name);
     llvm::Module* getMainModule() const;
@@ -57,7 +59,6 @@ namespace al {
 
   private:
     std::string nextConstVarName();
-
 
     struct {
       llvm::Function *printf;

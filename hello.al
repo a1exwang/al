@@ -1,6 +1,4 @@
-(fn 'entry'
-    ('argc' 'argv')
-    (statements
-        (puts argc)
-        (puts 'hello')
-        (puts '123')))
+(statements
+    (puts argc)
+    (puts 'hello\n')
+    (puts '123\n'))

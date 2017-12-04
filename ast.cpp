@@ -19,7 +19,7 @@ namespace al {
     VisitResult StringLiteral::gen_visit_result(CompileTime &ct) {
       VisitResult vr;
 //        vr.value = createStringTypeObject(this->s);
-      vr.value = ct.createStringValuePtr("null", ct.getBuilder());
+      vr.value = ct.createStringValuePtr(getValue(), ct.getBuilder());
       return vr;
     }
 
