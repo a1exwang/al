@@ -1,4 +1,4 @@
-(fn 'main'
+(fn 'entry'
     ('argc' 'argv')
     (statements
         (puts argc)

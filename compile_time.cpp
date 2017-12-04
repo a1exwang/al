@@ -148,7 +148,7 @@ void al::CompileTime::init() {
 
 void al::CompileTime::createMainFunc() {
   Function *func = Function::Create(
-      FunctionType::get(Type::getVoidTy(theContext), {}),
+      FunctionType::get(Type::getInt32Ty(theContext), {}),
       Function::ExternalLinkage,
       "main",
       getMainModule()
@@ -157,7 +157,28 @@ void al::CompileTime::createMainFunc() {
   BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
   builder.SetInsertPoint(BB);
   pushCurrentBlock(BB);
-  // main function starts
+
+  /* declares stdlib functions */
+
+  // int printf(const char *, ...)
+  this->fns.printf = Function::Create(
+      FunctionType::get(
+          Type::getInt32Ty(theContext),
+          {PointerType::get(Type::getInt8Ty(theContext), 0)},
+          true
+      ),
+      Function::LinkageTypes::ExternalLinkage, "printf", getMainModule()
+  );
+
+  // global
+  auto gVar = builder.CreateGlobalString("tmp123_wtf");
+  auto strPtr = builder.CreateBitCast(gVar, PointerType::get(Type::getInt8Ty(theContext), 0));
+  builder.CreateCall(
+      this->fns.printf,
+      {strPtr}
+  );
+
+  /* main function starts */
 }
 
 llvm::Value *al::CompileTime::createStringValuePtr(const std::string &s, IRBuilder<> &builder) {
@@ -184,9 +205,7 @@ llvm::Value *al::CompileTime::createStringValuePtr(const std::string &s, IRBuild
       )
   );
   // global
-  stringstream ss;
-  ss << strCounter++;
-  string name = ".str" + ss.str();
+  string name = nextConstVarName();
   auto gVar = builder.CreateGlobalString(s);
   // strObj.data = (int8*)@.strXX
   builder.CreateStore(
@@ -206,12 +225,29 @@ llvm::PointerType *al::CompileTime::getValuePtrType() {
 }
 
 al::CompileTime::~CompileTime() {
-
-
 }
 
 void al::CompileTime::finish() {
-  builder.CreateRet(nullptr);
+  /* Generate call entry function */
+//  FunctionType *ft = FunctionType::get(
+//      Type::getVoidTy(theContext), {
+//          getValuePtrType(), getValuePtrType()
+//      }, false
+//  );
+//  auto entryFn = getMainModule()->getOrInsertFunction("entry", ft);
+//  builder.CreateCall(entryFn, {
+//      builder.CreatePointerCast(createStringValuePtr("1", builder), getValuePtrType()),
+//      builder.CreatePointerCast(createStringValuePtr("hello", builder), getValuePtrType()),
+//  });
+
+  builder.CreateRet(ConstantInt::get(Type::getInt32Ty(theContext), 0));
+}
+
+std::string al::CompileTime::nextConstVarName() {
+  stringstream ss;
+  ss << strCounter++;
+  string name = ".local_" + ss.str();
+  return name;
 }
 
 //llvm::Value *al::CompileTime::castToValuePtr(llvm::Value *val) {

@@ -54,6 +54,14 @@ namespace al {
     llvm::LLVMContext &getContext() { return theContext; }
 
   private:
+    std::string nextConstVarName();
+
+
+    struct {
+      llvm::Function *printf;
+    } fns;
+
+
     llvm::StructType *valueType;
     llvm::PointerType *valuePtrType;
     llvm::StructType *stringType;
