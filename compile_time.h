@@ -44,10 +44,12 @@ namespace al {
     llvm::StructType *getValueType() const { return valueType; }
     llvm::PointerType *getValuePtrType();
     llvm::StructType *getArrayType() const { return arrayType; }
+    std::unique_ptr<llvm::Module> &&moveMainModule() { return std::move(mainModule); }
 
     void pushCurrentBlock(llvm::BasicBlock *b) { this->currentBlocks.push_back(b); }
     void popCurrentBlock() { this->currentBlocks.pop_back(); }
     llvm::BasicBlock *getCurrentBlock() const { return *(this->currentBlocks.end() - 1); }
+    llvm::Function *getMainFunc() const { return mainFunction; }
 
     llvm::IRBuilder<> &getBuilder() { return builder; }
 
@@ -60,7 +62,7 @@ namespace al {
     struct {
       llvm::Function *printf;
     } fns;
-
+    llvm::Function *mainFunction;
 
     llvm::StructType *valueType;
     llvm::PointerType *valuePtrType;

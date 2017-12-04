@@ -153,6 +153,7 @@ void al::CompileTime::createMainFunc() {
       "main",
       getMainModule()
   );
+  mainFunction = func;
 
   BasicBlock *BB = BasicBlock::Create(theContext, "entry", func);
   builder.SetInsertPoint(BB);
@@ -171,7 +172,7 @@ void al::CompileTime::createMainFunc() {
   );
 
   // global
-  auto gVar = builder.CreateGlobalString("tmp123_wtf");
+  auto gVar = builder.CreateGlobalString("tmp123_wtf", "wtf");
   auto strPtr = builder.CreateBitCast(gVar, PointerType::get(Type::getInt8Ty(theContext), 0));
   builder.CreateCall(
       this->fns.printf,
@@ -206,7 +207,7 @@ llvm::Value *al::CompileTime::createStringValuePtr(const std::string &s, IRBuild
   );
   // global
   string name = nextConstVarName();
-  auto gVar = builder.CreateGlobalString(s);
+  auto gVar = builder.CreateGlobalString(s, "a");
   // strObj.data = (int8*)@.strXX
   builder.CreateStore(
       builder.CreateBitCast(

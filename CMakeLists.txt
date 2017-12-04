@@ -20,6 +20,8 @@ add_compile_options(-std=c++11)
 
 
 add_executable(al al.cpp ${BISON_parser_OUTPUTS} lex.cpp lex.h ast.h ast.cpp compile_time.cpp)
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs support core irreader executionengine interpreter x86codegen)
 target_link_libraries(al ${llvm_libs} re2)
 
+add_executable(jit HowToUseJIT.cpp)
+target_link_libraries(jit ${llvm_libs} ${LLVM_LINK_COMPONENTS})
