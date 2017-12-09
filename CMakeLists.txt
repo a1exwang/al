@@ -20,8 +20,9 @@ add_compile_options(-std=c++11)
 
 
 add_executable(al al.cpp ${BISON_parser_OUTPUTS} lex.cpp lex.h ast.h ast.cpp compile_time.cpp)
-llvm_map_components_to_libnames(llvm_libs support core irreader executionengine interpreter x86codegen)
+llvm_map_components_to_libnames(llvm_libs support core irreader executionengine x86codegen mcjit)
 target_link_libraries(al ${llvm_libs} re2)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
 
 add_executable(jit HowToUseJIT.cpp)
 target_link_libraries(jit ${llvm_libs})

@@ -37,9 +37,9 @@ al::Parser::symbol_type al::Lexer::lex() {
   string regs[] = {
       "\\s+",
       "\\(",
-      "\\)",
+      R"(\))",
       "'",
-      "\\w+",
+      R"(\w(\w|\d|[-_+=?!@#$%^&*])*)",
       "\\d+",
   };
   std::function<Parser::symbol_type (const std::string &s)> fns[] = {

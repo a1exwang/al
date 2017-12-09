@@ -125,6 +125,7 @@ void al::CompileTime::createPrimitiveTypes() {
       },
       "Array"
   );
+
   valueType->setBody(
       {
           Type::getInt8PtrTy(theContext), // object type
@@ -144,6 +145,7 @@ void al::CompileTime::init() {
   createPutsFunc();
 
   createPlaceHolderFunc("statements", 3);
+  createPlaceHolderFunc("take-last", 3);
 //  createPlaceHolderFunc("puts", 1);
   createMainFunc();
 }
@@ -162,16 +164,20 @@ void al::CompileTime::createMainFunc() {
   pushCurrentBlock(BB);
 
   /* declares stdlib functions */
-
-  // global
-  auto gVar = builder.CreateGlobalString("tmp123_wtf\n", "wtf");
-  auto strPtr = builder.CreateBitCast(gVar, PointerType::get(Type::getInt8Ty(theContext), 0));
-  builder.CreateCall(
-      this->fns.printf,
-      {strPtr}
+  /* main function starts */
+//  auto ft = FunctionType::get(Type::getVoidTy(theContext), {});
+//  auto func1 = Function::Create(ft, Function::LinkageTypes::ExternalLinkage, "callMeDaddy", getMainModule());
+  auto a = Function::Create(
+      FunctionType::get(
+          Type::getVoidTy(theContext),
+          {},
+          false
+      ),
+      Function::LinkageTypes::ExternalLinkage, "callMeDaddy", getMainModule()
   );
 
-  /* main function starts */
+
+  builder.CreateCall(a, {});
 }
 
 llvm::Value *al::CompileTime::createStringValuePtr(const std::string &s, IRBuilder<> &builder) {
@@ -254,8 +260,6 @@ void al::CompileTime::createPutsFunc() {
   builder1.SetInsertPoint(BB);
 
   // function body
-//  builder1.
-//  auto gVar = builder1.CreateGlobalString("abc\n", "wtf1");
   llvm::Value *objPtr = func->arg_begin();
   auto sPtr = builder1.CreatePointerCast(objPtr, getStringPtrType());
   auto bytesDataPtr = builder1.CreateGEP(
@@ -265,17 +269,11 @@ void al::CompileTime::createPutsFunc() {
        ConstantInt::get(Type::getInt32Ty(theContext),1)}
   );
   auto bytesData = builder1.CreateLoad(bytesDataPtr);
-//  auto strPtr = builder1.CreateBitCast(
-//      bytesData,
-//      PointerType::get(Type::getInt8Ty(theContext), 0)
-//  );
   builder1.CreateCall(
       this->fns.printf,
       {bytesData}
   );
   builder1.CreateRet(ConstantPointerNull::get(getValuePtrType()));
-//  builder1.CreateRet(llvm::ConstantPointerNull::get(getValuePtrType()));
-//  llvm::Value *s = func->arg_begin();
 
   verifyFunction(*func);
 }

@@ -58,12 +58,36 @@ namespace al {
 //        cerr << "Compile error, the first element in function call list must be a symbol" << endl;
 //        abort();
       }
+      bool isNative = false;
       auto fnName = symbol->getValue();
-      llvm::Function *callee = rt.getMainModule()->getFunction(fnName);
+      llvm::Function *callee = nullptr;
+
+      if (fnName == "wtf") {
+        auto ft = llvm::FunctionType::get(llvm::Type::getVoidTy(rt.getContext()), {llvm::Type::getInt64Ty(rt.getContext())}, false);
+        callee = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "AL__callFunction1", rt.getMainModule());
+        isNative = true;
+      }
+      else {
+        callee = rt.getMainModule()->getFunction(fnName);
+        if (callee == nullptr) {
+          auto nativeFnName = "AL__" + fnName;
+          uint32_t argc = c.size() - 1;
+          vector<llvm::Type*> ps;
+          ps.push_back(llvm::Type::getInt64Ty(rt.getContext()));
+          for (int i = 0; i < argc; ++i) {
+            ps.push_back(llvm::Type::getInt64Ty(rt.getContext()));
+          }
+          auto ft = llvm::FunctionType::get(llvm::Type::getVoidTy(rt.getContext()), ps, false);
+          callee = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, nativeFnName, rt.getMainModule());
+//        callee = rt.getMainModule()->getFunction();
+          isNative = true;
+        }
+      }
       if (!callee) {
         cerr << "Compile error, function '" << fnName << "' not defined" << endl;
         abort();
       }
+
 
       std::vector<llvm::Value *> ArgsV;
       for (unsigned i = 1; i < c.size(); ++i) {
@@ -80,6 +104,13 @@ namespace al {
 
       post_visit(rt);
       VisitResult vr;
+      if (isNative) {
+        ArgsV.insert(ArgsV.begin(), llvm::ConstantInt::get(llvm::Type::getInt64Ty(rt.getContext()), (uint64_t)&rt));
+        for (int i = 1; i < ArgsV.size(); ++i)
+          ArgsV[i] = rt.getBuilder().CreatePtrToInt(ArgsV[i], llvm::Type::getInt64Ty(rt.getContext()));
+      }
+
+
       vr.value = rt.getBuilder().CreateCall(callee, ArgsV);
       return vr;
     }

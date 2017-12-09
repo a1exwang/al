@@ -11,7 +11,10 @@ namespace al {
   class Value {
     uint8_t type;
     llvm::Value *value;
-
+  };
+  struct StringValue {
+    uint32_t len;
+    uint8_t *data;
   };
   namespace ast {
     class ASTNode;
@@ -57,7 +60,8 @@ namespace al {
 
     llvm::LLVMContext &getContext() { return theContext; }
 
-  private:
+//  private:
+  public:
     std::string nextConstVarName();
 
     struct {
