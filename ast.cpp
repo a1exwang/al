@@ -19,7 +19,7 @@ namespace al {
     VisitResult StringLiteral::gen_visit_result(CompileTime &ct) {
       VisitResult vr;
 //        vr.value = createStringTypeObject(this->s);
-      vr.value = ct.createStringValuePtr(getValue(), ct.getBuilder());
+      vr.value = ct.castStringToValuePtr(ct.createStringValuePtr(getValue(), ct.getBuilder()));
       return vr;
     }
 
@@ -47,7 +47,8 @@ namespace al {
         for (const auto &item : c) {
           auto str = dynamic_cast<StringLiteral*>(item.get());
           if (str != nullptr) {
-            items.push_back(rt.createStringValuePtr(str->getValue(), rt.getBuilder()));
+            items.push_back(rt.castStringToValuePtr(
+                rt.castStringToValuePtr(rt.createStringValuePtr(str->getValue(), rt.getBuilder()))));
           }
         }
         VisitResult vr;
@@ -63,9 +64,43 @@ namespace al {
       llvm::Function *callee = nullptr;
 
       if (fnName == "wtf") {
-        auto ft = llvm::FunctionType::get(llvm::Type::getVoidTy(rt.getContext()), {llvm::Type::getInt64Ty(rt.getContext())}, false);
-        callee = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "AL__callFunction1", rt.getMainModule());
-        isNative = true;
+        vector<llvm::Type*> types(3, llvm::Type::getInt64Ty(rt.getContext()));
+        auto ft = llvm::FunctionType::get(
+            llvm::Type::getVoidTy(rt.getContext()),
+            types,
+            true
+        );
+        callee = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "AL__callFunction", rt.getMainModule());
+
+        auto strValuePtr = rt.createStringValuePtr(fnName, rt.getBuilder());
+        auto nameStrValue = rt.castStringToValuePtr(strValuePtr);
+
+        std::vector<llvm::Value *> ArgsV;
+        // void AL__callFunction(uint64_t _prt, uint64_t _pname, uint64_t nargs, ...);
+        ArgsV.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(rt.getContext()), (uint64_t)&rt));
+        ArgsV.push_back(rt.getBuilder().CreatePtrToInt(nameStrValue, llvm::Type::getInt64Ty(rt.getContext())));
+        ArgsV.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(rt.getContext()), (uint64_t)(c.size() - 1)));
+
+        for (unsigned i = 1; i < c.size(); ++i) {
+          auto result = c[i]->visit(rt);
+          if (result.value) {
+            ArgsV.push_back(rt.getBuilder().CreatePointerCast(result.value, rt.getValuePtrType()));
+          }
+          else {
+            ArgsV.push_back(rt.getBuilder().CreatePointerCast(
+                rt.castStringToValuePtr(rt.createStringValuePtr("wtf", rt.getBuilder())), rt.getValuePtrType())
+            );
+          }
+        }
+
+        post_visit(rt);
+
+        VisitResult vr;
+        for (int i = 1; i < ArgsV.size(); ++i)
+          ArgsV[i] = rt.getBuilder().CreatePtrToInt(ArgsV[i], llvm::Type::getInt64Ty(rt.getContext()));
+
+        vr.value = rt.getBuilder().CreateCall(callee, ArgsV);
+        return vr;
       }
       else {
         callee = rt.getMainModule()->getFunction(fnName);

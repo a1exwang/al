@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(al)
 
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+# set(CMAKE_LINKER ld.gold)
 
 FIND_PACKAGE(BISON REQUIRED)
 bison_target(parser parser.y ${CMAKE_CURRENT_SOURCE_DIR}/parser.tab.cpp)
-
 
 # LLVM
 set(LLVM_DIR "./llvm-5.0.0.src/build/lib/cmake/llvm")

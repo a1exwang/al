@@ -1,4 +1,4 @@
 (take-last
-    (puts argc)
+    (puts 'are you ok?\n')
     (insertFunction 'wtf')
     (wtf))

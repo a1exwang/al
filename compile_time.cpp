@@ -128,7 +128,7 @@ void al::CompileTime::createPrimitiveTypes() {
 
   valueType->setBody(
       {
-          Type::getInt8PtrTy(theContext), // object type
+          Type::getInt32Ty(theContext), // object type
 
           getStringType(),
           Type::getInt32Ty(theContext),
@@ -260,8 +260,14 @@ void al::CompileTime::createPutsFunc() {
   builder1.SetInsertPoint(BB);
 
   // function body
-  llvm::Value *objPtr = func->arg_begin();
-  auto sPtr = builder1.CreatePointerCast(objPtr, getStringPtrType());
+  llvm::Value *_objPtr = func->arg_begin();
+  auto objPtr = builder1.CreatePointerCast(_objPtr, getValuePtrType());
+  auto sPtr = builder1.CreateGEP(
+      objPtr->getType()->getPointerElementType(),
+      objPtr,
+      {ConstantInt::get(Type::getInt32Ty(theContext),0),
+       ConstantInt::get(Type::getInt32Ty(theContext),1)}
+  );
   auto bytesDataPtr = builder1.CreateGEP(
       sPtr->getType()->getPointerElementType(),
       sPtr,
@@ -288,6 +294,37 @@ void al::CompileTime::createLibFunc() {
       ),
       Function::LinkageTypes::ExternalLinkage, "printf", getMainModule()
   );
+}
+
+llvm::Value *al::CompileTime::castStringToValuePtr(llvm::Value *strVal) {
+  auto valObj = builder.CreateAlloca(
+      getValueType(),
+      0,
+      ConstantInt::get(Type::getInt32Ty(theContext), 1)
+  );
+  // val.type = ValueType::String
+  builder.CreateStore(
+      ConstantInt::get(Type::getInt32Ty(theContext), al::ValueType::String),
+      builder.CreateGEP(
+          getValueType(),
+          valObj,
+          {ConstantInt::get(Type::getInt32Ty(theContext), 0),
+           ConstantInt::get(Type::getInt32Ty(theContext), 0)}
+      )
+  );
+  // val.sVal = *sPtr
+  builder.CreateMemCpy(
+      builder.CreateGEP(
+          getValueType(),
+          valObj,
+          {ConstantInt::get(Type::getInt32Ty(theContext), 0),
+           ConstantInt::get(Type::getInt32Ty(theContext), 1)}
+      ),
+      strVal,
+      sizeof(al::StringValue),
+      1
+  );
+  return valObj;
 }
 
 //llvm::Value *al::CompileTime::castToValuePtr(llvm::Value *val) {

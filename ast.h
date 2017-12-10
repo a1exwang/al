@@ -15,7 +15,7 @@ namespace al {
 
     struct VisitResult {
       VisitResult() :value() { }
-      VisitResult(const nullptr_t &nptr) :value(nullptr) {}
+      VisitResult(const std::nullptr_t &nptr) :value(nullptr) {}
       llvm::Value *value;
     };
 

@@ -44,6 +44,7 @@
 #include <cassert>
 #include <memory>
 #include <vector>
+#include <cstdarg>
 
 using namespace llvm;
 using namespace std;
@@ -62,35 +63,52 @@ DLLEXPORT void callMeDaddy() {
 ExecutionEngine *EE;
 llvm::Module *mainModule;
 
-unique_ptr<llvm::Module> newModule;
-DLLEXPORT void AL__callFunction1(uint64_t _rt) {
-  auto rt = reinterpret_cast<al::CompileTime*>(_rt);
-//  auto name = reinterpret_cast<al::StringValue *>(_name);
+DLLEXPORT void AL__callFunction(uint64_t _prt, uint64_t _pname, uint64_t nargs, ...) {
+  auto rt = reinterpret_cast<al::CompileTime*>(_prt);
+  auto name = reinterpret_cast<al::Value *>(_pname);
+  vector<uint64_t> params;
+  va_list args;
+  va_start(args, nargs);
+  for (int i = 0; i < nargs; ++i) {
+    auto arg = va_arg(args, uint64_t);
+    params.push_back(arg);
+  }
+  va_end(args);
 
-  FunctionType *ft = FunctionType::get(rt->getValuePtrType(), {}, false);
-//  string fnName((const char*)name->data, name->len);
-//  newModule->getOrInsertFunction("AL__wtf", ft);
-//  Function *func = newModule->getFunction("AL__wtf");
-//  Function *func = Function::Create(ft, Function::ExternalLinkage, "AL__wtf", newModule.get());
-  auto func = newModule->getFunction("AL__wtf");
+  string fnName((const char*)name->sVal.data, name->sVal.len);
+  fnName = "AL__" + fnName;
 
-  EE->addModule(move(newModule));
-  EE->runFunction(func, {});
+  decltype(rt->symbolTable.find(fnName)) wtf;
+  if ((wtf = rt->symbolTable.find(fnName)) == rt->symbolTable.end()) {
+    cerr << "Cannot find function '" << fnName << "'" << endl;
+    assert(false);
+  }
+  auto mod = wtf->second;
+  auto func = mod->getFunction(fnName);
+
+  EE->addModule(move(unique_ptr<llvm::Module>(mod)));
+  vector<GenericValue> gvs;
+  for (auto p : params) {
+    gvs.push_back(GenericValue((llvm::Value*)p));
+  }
+  EE->runFunction(func, gvs);
 }
 
 DLLEXPORT void AL__insertFunction(uint64_t _rt, uint64_t _name) {
   auto rt = reinterpret_cast<al::CompileTime*>(_rt);
-  auto name = reinterpret_cast<al::StringValue *>(_name);
-
-  FunctionType *ft = FunctionType::get(rt->getValuePtrType(), {}, false);
-  if (!newModule)
-    newModule = llvm::make_unique<llvm::Module>("new_module", rt->getContext());
-
+  auto name = &reinterpret_cast<al::Value *>(_name)->sVal;
   string fnName((const char*)name->data, name->len);
   fnName = "AL__" + fnName;
-  Function *func = Function::Create(ft, Function::ExternalLinkage, fnName, newModule.get());
 
-//  func->args().begin()->setName("s");
+  FunctionType *ft = FunctionType::get(rt->getValuePtrType(), {}, false);
+  if (rt->symbolTable.find(fnName) != rt->symbolTable.end()) {
+    cerr << "Function '" << fnName << "' exists" << endl;
+    assert(false);
+  }
+  auto mod = new llvm::Module(fnName, rt->getContext());
+
+  rt->symbolTable[fnName] = mod;
+  Function *func = Function::Create(ft, Function::ExternalLinkage, fnName, mod);
 
   BasicBlock *BB = BasicBlock::Create(rt->getContext(), "entry", func);
   IRBuilder<> builder1(rt->getContext());
@@ -98,8 +116,16 @@ DLLEXPORT void AL__insertFunction(uint64_t _rt, uint64_t _name) {
 
   // function body
   builder1.CreateCall(
-      Function::Create(FunctionType::get(Type::getInt32Ty(rt->getContext()), {Type::getInt32Ty(rt->getContext())}, false), Function::ExternalLinkage, "putchar", newModule.get()),
-      {ConstantInt::get(Type::getInt32Ty(rt->getContext()), 'a')}
+      Function::Create(
+          FunctionType::get(
+              Type::getInt32Ty(rt->getContext()),
+              {Type::getInt32Ty(rt->getContext())},
+              false),
+          Function::ExternalLinkage,
+          "putchar",
+          mod
+      ),
+      {ConstantInt::get(Type::getInt32Ty(rt->getContext()), 'x')}
   );
   builder1.CreateRet(ConstantPointerNull::get(rt->getValuePtrType()));
 

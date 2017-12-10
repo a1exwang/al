@@ -5,16 +5,30 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/BasicBlock.h"
+#include <map>
 
 
 namespace al {
-  class Value {
-    uint8_t type;
-    llvm::Value *value;
-  };
+  struct Value;
   struct StringValue {
     uint32_t len;
     uint8_t *data;
+  };
+  struct ArrayValue {
+    uint32_t n;
+    Value *pVal;
+  };
+  enum ValueType {
+    Integer = 0,
+    String,
+    Array
+  };
+  struct Value {
+    uint32_t type;
+
+    StringValue sVal;
+    uint32_t iVal;
+    ArrayValue aVal;
   };
   namespace ast {
     class ASTNode;
@@ -42,7 +56,7 @@ namespace al {
     llvm::Module* getMainModule() const;
 
     llvm::Value *createStringValuePtr(const std::string &s, llvm::IRBuilder<> &builder);
-//    llvm::Value *castToValuePtr(llvm::Value *);
+    llvm::Value *castStringToValuePtr(llvm::Value *);
 
     llvm::PointerType *getStringPtrType() const;
     llvm::StructType *getStringType() const;
@@ -82,5 +96,7 @@ namespace al {
 
     std::vector<llvm::BasicBlock*> currentBlocks;
     int strCounter;
+
+    std::map<std::string, llvm::Module*> symbolTable;
   };
 }
